@@ -15,6 +15,12 @@ export const cupons = sqliteTable("cupons", {
   hash: text("hash").notNull().unique(),
 
   loja: text("loja").notNull(),
+  // Domínio do site da loja (ex: "mercadolivre.com.br"), quando a fonte
+  // expõe essa informação. É o que permite a extensão de navegador (ver
+  // extension/) descobrir "em que loja o usuário está" a partir da URL da
+  // aba atual, sem depender do nome de exibição — que varia de escrita
+  // entre fontes (ex: "AliExpress" no Promobit vs "Aliexpress" no Pelando).
+  dominio: text("dominio"),
   titulo: text("titulo").notNull(),
   codigo: text("codigo"), // pode ser null quando é só um link promocional, sem código
   desconto: text("desconto"), // texto livre: "20%", "R$50 OFF" etc — normalizar é complicado por loja

@@ -8,6 +8,13 @@ import { z } from "zod";
  */
 export const cupomBrutoSchema = z.object({
   loja: z.string().min(1),
+  // Domínio do site da loja (ex: "mercadolivre.com.br"), sem "www." nem
+  // protocolo. Opcional porque nem toda fonte expõe isso facilmente — mas
+  // quando disponível, é o que permite outras ferramentas (ex: a extensão
+  // de navegador em extension/) casar "em que loja o usuário está" com os
+  // cupons no banco, sem depender do nome de exibição (que varia de escrita
+  // entre fontes).
+  lojaDominio: z.string().min(1).nullable().optional(),
   titulo: z.string().min(1),
   codigo: z.string().nullable().optional(),
   desconto: z.string().nullable().optional(),

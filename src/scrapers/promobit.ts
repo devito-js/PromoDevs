@@ -25,6 +25,7 @@ interface CupomApiPromobit {
   coupon_url: string;
   coupon_until: string | null;
   store_name: string;
+  store_domain: string | null;
 }
 
 interface RespostaApiPromobit {
@@ -71,6 +72,7 @@ export const promobitScraper: Scraper = {
 
       const candidato = {
         loja: cupom.store_name,
+        lojaDominio: cupom.store_domain?.replace(/^www\./, "") || null,
         titulo: cupom.coupon_title,
         codigo: cupom.coupon_code || null,
         desconto: cupom.coupon_discount || cupom.coupon_discount_value || null,

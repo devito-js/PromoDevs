@@ -42,6 +42,7 @@ async function rodarScraper(scraper: Scraper) {
       .values({
         hash,
         loja: cupom.loja,
+        dominio: cupom.lojaDominio ?? null,
         titulo: cupom.titulo,
         codigo: cupom.codigo ?? null,
         desconto: cupom.desconto ?? null,
@@ -54,7 +55,10 @@ async function rodarScraper(scraper: Scraper) {
       })
       .onConflictDoUpdate({
         target: cupons.hash,
-        set: { vistoEm: agora, ativo: true },
+        // Também atualiza `dominio` no conflito — isso faz o backfill de
+        // cupons que já existiam antes desse campo ser adicionado, sem
+        // precisar apagar e re-popular o banco.
+        set: { vistoEm: agora, ativo: true, dominio: cupom.lojaDominio ?? null },
       });
   }
 

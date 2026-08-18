@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "PromoDevs — Cupons no Checkout",
+  "version": "0.1.0",
+  "description": "Mostra os cupons ativos do seu dashboard PromoDevs direto na página da loja em que você está.",
+  "permissions": ["storage"],
+  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.aliexpress.com/*",
+        "*://*.amazon.com.br/*",
+        "*://*.cea.com.br/*",
+        "*://*.consul.com.br/*",
+        "*://*.dafiti.com.br/*",
+        "*://*.decolar.com/*",
+        "*://*.drogaraia.com.br/*",
+        "*://*.drogariasaopaulo.com.br/*",
+        "*://*.drogariaspacheco.com.br/*",
+        "*://*.drogariavenancio.com.br/*",
+        "*://*.drogasil.com.br/*",
+        "*://*.epocacosmeticos.com.br/*",
+        "*://*.kabum.com.br/*",
+        "*://*.leroymerlin.com.br/*",
+        "*://*.lojasrenner.com.br/*",
+        "*://*.magazineluiza.com.br/*",
+        "*://*.mercadolivre.com.br/*",
+        "*://*.netshoes.com.br/*",
+        "*://*.ortobom.com.br/*",
+        "*://*.paguemenos.com.br/*",
+        "*://*.shopee.com.br/*",
+        "*://*.underarmour.com.br/*",
+        "*://*.voeazul.com.br/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options.html"
+}

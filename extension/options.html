@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>PromoDevs — Configurações</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        padding: 16px;
+        width: 320px;
+        color: #1a1a1a;
+      }
+      h3 {
+        margin: 0 0 12px;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        color: #333;
+        margin-bottom: 4px;
+      }
+      input {
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        margin-bottom: 10px;
+        font: inherit;
+      }
+      button {
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: none;
+        background: #1a1a1a;
+        color: white;
+        cursor: pointer;
+        font: inherit;
+      }
+      .status {
+        font-size: 12px;
+        color: #16a34a;
+        margin-left: 8px;
+      }
+      p.ajuda {
+        font-size: 11px;
+        color: #888;
+        margin-top: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>PromoDevs 🏷️</h3>
+    <label for="dashboard-url">URL do dashboard</label>
+    <input id="dashboard-url" type="text" placeholder="http://localhost:3000" />
+    <button id="salvar">Salvar</button>
+    <span class="status" id="status"></span>
+    <p class="ajuda">
+      É onde a extensão busca os cupons ativos (rota
+      <code>/api/cupons</code>). Precisa estar rodando (<code>npm run dev</code>)
+      pra extensão funcionar.
+    </p>
+    <script src="options.js"></script>
+  </body>
+</html>

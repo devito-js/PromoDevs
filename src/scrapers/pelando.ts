@@ -41,17 +41,18 @@ interface OfertaLdJson {
 function extrairOfertas(html: string): {
   ofertas: OfertaLdJson[];
   nomeLoja: string | null;
+  dominioLoja: string | null;
 } {
   const match = html.match(
     /<script id="coupon-store-graph"[^>]*>([\s\S]*?)<\/script>/
   );
-  if (!match) return { ofertas: [], nomeLoja: null };
+  if (!match) return { ofertas: [], nomeLoja: null, dominioLoja: null };
 
   let dados: { "@graph"?: Array<Record<string, unknown>> };
   try {
     dados = JSON.parse(match[1]);
   } catch {
-    return { ofertas: [], nomeLoja: null };
+    return { ofertas: [], nomeLoja: null, dominioLoja: null };
   }
 
   const grafo = dados["@graph"] ?? [];
@@ -67,9 +68,23 @@ function extrairOfertas(html: string): {
       no["@id"].includes("#store-org")
   );
 
+  // A URL do site oficial da loja (não a do Pelando) vem em `url`, ex:
+  // "https://www.mercadolivre.com.br/" — extraímos só o hostname, sem
+  // "www." nem protocolo.
+  let dominioLoja: string | null = null;
+  const urlLoja = organizacaoLoja?.url as string | undefined;
+  if (urlLoja) {
+    try {
+      dominioLoja = new URL(urlLoja).hostname.replace(/^www\./, "");
+    } catch {
+      dominioLoja = null;
+    }
+  }
+
   return {
     ofertas,
     nomeLoja: (organizacaoLoja?.name as string) ?? null,
+    dominioLoja,
   };
 }
 
@@ -111,7 +126,7 @@ export const pelandoScraper: Scraper = {
         continue;
       }
 
-      const { ofertas, nomeLoja } = extrairOfertas(html);
+      const { ofertas, nomeLoja, dominioLoja } = extrairOfertas(html);
 
       for (const oferta of ofertas.slice(0, MAX_CUPONS_POR_LOJA)) {
         if (!oferta.url || !oferta.name) continue;
@@ -124,6 +139,7 @@ export const pelandoScraper: Scraper = {
 
         const candidato = {
           loja: nomeLoja ?? slug,
+          lojaDominio: dominioLoja,
           titulo: oferta.name,
           codigo,
           // O Pelando não expõe um campo de desconto separado — o valor
