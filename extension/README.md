@@ -14,8 +14,18 @@ sozinha, você continua no controle.
   daquele domínio na rota `/api/cupons?dominio=...` do dashboard Next.js —
   isso roda fora da página visitada, então não esbarra em CORS/CSP do site
   da loja.
-- O painel lista os cupons com um botão "Copiar" (código pra área de
-  transferência) e "Abrir" (leva pra página de origem do cupom).
+- O painel lista os cupons com um botão "Aplicar" e "Abrir" (leva pra
+  página de origem do cupom).
+- "Aplicar" tenta achar um campo de cupom na página atual (heurística
+  genérica: procura por inputs de texto visíveis cujo id/name/placeholder/
+  label combine com "cupom", "coupon", "voucher", "código promocional"
+  etc. — ver `encontrarCampoCupom()` em `content.js`), preenche o valor
+  (do jeito que frameworks como React reconhecem, não só visualmente) e
+  clica num botão de "Aplicar"/"Confirmar" próximo, se achar um. Quando
+  não acha nenhum campo compatível na página (loja não coberta, campo
+  fora da tela ainda, checkout que exige login antes de mostrar o campo
+  etc.), cai pro comportamento antigo: copia o código pro clipboard e
+  avisa que não achou o campo — você cola manualmente.
 
 ## Instalar (modo desenvolvedor)
 
@@ -31,6 +41,16 @@ sozinha, você continua no controle.
 Se o dashboard estiver rodando em outra URL/porta, ajuste em
 "Opções" da extensão (clique direito no ícone > Opções).
 
+## Testes
+
+`npm run test:extension` roda `content.js` de verdade (não uma
+reimplementação) contra duas páginas de teste locais em
+`extension/tests/fixtures/`: uma com um campo de cupom "controlado" (estilo
+React) e outra sem nenhum campo — confirma que o preenchimento programático
+funciona de verdade e que o fallback pra copiar entra em ação quando não há
+campo. Não substitui testar contra uma loja real, só garante que o mecanismo
+central não quebrou.
+
 ## Limitações conhecidas (é um MVP)
 
 - **Lista de lojas é estática.** `manifest.json` só injeta o botão nos
@@ -43,7 +63,17 @@ Se o dashboard estiver rodando em outra URL/porta, ajuste em
   pra um dashboard hospedado em outro domínio, o fetch do `background.js`
   vai falhar por falta de permissão — precisaria adicionar esse host no
   manifest.
-- **Não aplica cupom sozinha.** De propósito — testar cupons automaticamente
-  no checkout de uma loja de verdade (login, requisições em sequência) é o
-  tipo de padrão que sistemas antifraude são treinados pra pegar. Essa
-  versão só facilita você testar manualmente, com um clique.
+- **Aplica só o cupom que você escolher, um de cada vez.** De propósito —
+  testar todos os cupons automaticamente, em sequência, sem você escolher
+  (tipo Honey/Coupert) é o tipo de padrão que sistemas antifraude de
+  checkout são treinados pra pegar. Essa versão só automatiza o "colar e
+  confirmar" do cupom que você já escolheu clicando.
+- **A heurística de achar o campo é genérica, não por loja.** Não foi
+  verificada contra o checkout de verdade de cada uma das 23 lojas — várias
+  delas só mostram o campo de cupom depois de login + itens no carrinho, o
+  que não dá pra inspecionar sem uma conta real. Foi validada com um teste
+  controlado (`npm run test:extension`) que simula um campo de formulário
+  "controlado" (estilo React) e confere que o preenchimento programático
+  realmente atualiza o estado interno, não só a aparência — mas o "achar o
+  campo certo" depende de cada site ter texto reconhecível (cupom/coupon/
+  voucher) perto do campo. Quando não acha, cai pro fallback de copiar.

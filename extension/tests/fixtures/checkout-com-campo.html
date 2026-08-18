@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Checkout de teste</title>
+  </head>
+  <body>
+    <h1>Loja de teste — Finalizar compra</h1>
+    <div class="resumo-pedido">
+      <p>Total: R$ 199,90</p>
+    </div>
+
+    <div class="cupom-container">
+      <label for="campo-desconto">Tem um cupom de desconto?</label>
+      <input id="campo-desconto" type="text" placeholder="Digite seu cupom" />
+      <button id="botao-aplicar-cupom" type="button">Aplicar cupom</button>
+    </div>
+
+    <div id="resultado"></div>
+
+    <script>
+      // Simula um componente "controlado" (estilo React): o valor "de
+      // verdade" só muda quando o listener de 'input' roda — atribuir
+      // `.value` direto no elemento NÃO deveria, por si só, atualizar esse
+      // estado interno, exatamente como aconteceria com o setState de um
+      // componente React controlado.
+      window.__estadoInterno = { valorReal: "" };
+
+      const campo = document.getElementById("campo-desconto");
+      campo.addEventListener("input", (e) => {
+        window.__estadoInterno.valorReal = e.target.value;
+      });
+
+      document.getElementById("botao-aplicar-cupom").addEventListener("click", () => {
+        window.__botaoAplicarClicado = true;
+        document.getElementById("resultado").textContent =
+          "Cupom aplicado (estado interno): " + window.__estadoInterno.valorReal;
+      });
+    </script>
+  </body>
+</html>

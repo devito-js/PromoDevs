@@ -101,7 +101,7 @@
     const acoesHtml = cupom.codigo
       ? `<span class="cupom-codigo">${escaparHtml(cupom.codigo)}</span>
          <div class="acoes">
-           <button class="botao-acao copiar">Copiar</button>
+           <button class="botao-acao aplicar">Aplicar</button>
            <a class="botao-acao" href="${escaparAtributo(cupom.urlOrigem)}" target="_blank" rel="noopener noreferrer">Abrir</a>
          </div>`
       : `<span class="fonte">Sem código</span>
@@ -113,24 +113,137 @@
       <div class="fonte">via ${escaparHtml(cupom.fonte)}</div>
     `;
 
-    const botaoCopiar = item.querySelector(".copiar");
-    if (botaoCopiar) {
-      botaoCopiar.addEventListener("click", async () => {
-        try {
-          await navigator.clipboard.writeText(cupom.codigo);
-          botaoCopiar.textContent = "Copiado!";
-          botaoCopiar.classList.add("copiado");
-          setTimeout(() => {
-            botaoCopiar.textContent = "Copiar";
-            botaoCopiar.classList.remove("copiado");
-          }, 1500);
-        } catch {
-          botaoCopiar.textContent = "Falhou :(";
-        }
-      });
+    const botaoAplicar = item.querySelector(".aplicar");
+    if (botaoAplicar) {
+      botaoAplicar.addEventListener("click", () => aplicarOuCopiar(cupom, botaoAplicar));
     }
 
     return item;
+  }
+
+  function mostrarFeedback(botao, texto, duracaoMs = 2500) {
+    const original = "Aplicar";
+    botao.textContent = texto;
+    botao.classList.add("copiado");
+    setTimeout(() => {
+      botao.textContent = original;
+      botao.classList.remove("copiado");
+    }, duracaoMs);
+  }
+
+  // Tenta preencher e aplicar o cupom direto na página atual. Se não achar
+  // um campo que pareça ser de cupom (loja não coberta, checkout não
+  // carregado, etc.), cai pro comportamento antigo: copia pro clipboard e
+  // avisa que não achou o campo.
+  async function aplicarOuCopiar(cupom, botao) {
+    const campo = encontrarCampoCupom();
+
+    if (campo) {
+      preencherCampo(campo, cupom.codigo);
+      campo.scrollIntoView({ behavior: "smooth", block: "center" });
+      campo.focus();
+
+      const botaoDaPagina = encontrarBotaoAplicar(campo);
+      if (botaoDaPagina) {
+        botaoDaPagina.click();
+        mostrarFeedback(botao, "Aplicado!");
+      } else {
+        mostrarFeedback(botao, "Preenchido — clique em aplicar", 3500);
+      }
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(cupom.codigo);
+      mostrarFeedback(botao, "Copiado (não achei o campo)", 3500);
+    } catch {
+      mostrarFeedback(botao, "Falhou :(");
+    }
+  }
+
+  // Heurística genérica: em vez de mapear o campo de cupom loja por loja
+  // (frágil, e inviável de verificar em todas sem logar numa conta de
+  // verdade em cada uma), procura por qualquer input de texto visível cujo
+  // id/name/placeholder/aria-label/label associado combine com um padrão
+  // comum de "campo de cupom" em português/inglês/espanhol.
+  const REGEX_CAMPO_CUPOM = /cupom|cup[oó]n|coupon|voucher|c[oó]digo\s*promo|promo\s*code|gift\s*card/i;
+  const REGEX_BOTAO_APLICAR = /aplicar|usar\s*cupom|apply|resgatar|confirmar|^ok$/i;
+
+  function encontrarCampoCupom() {
+    const candidatos = document.querySelectorAll(
+      'input[type="text"], input[type="search"], input:not([type])'
+    );
+
+    for (const input of candidatos) {
+      if (!ehVisivel(input)) continue;
+
+      const pistas = [
+        input.id,
+        input.name,
+        input.placeholder,
+        input.getAttribute("aria-label"),
+        rotuloAssociado(input),
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+      if (REGEX_CAMPO_CUPOM.test(pistas)) return input;
+    }
+
+    return null;
+  }
+
+  function rotuloAssociado(input) {
+    if (input.id) {
+      const label = document.querySelector(`label[for="${CSS.escape(input.id)}"]`);
+      if (label) return label.textContent ?? "";
+    }
+    const labelPai = input.closest("label");
+    return labelPai ? labelPai.textContent ?? "" : "";
+  }
+
+  function ehVisivel(elemento) {
+    const retangulo = elemento.getBoundingClientRect();
+    const estilo = getComputedStyle(elemento);
+    return (
+      retangulo.width > 0 &&
+      retangulo.height > 0 &&
+      estilo.visibility !== "hidden" &&
+      estilo.display !== "none"
+    );
+  }
+
+  // Muitos sites (React, Vue etc.) sobrescrevem o setter de `value` do input
+  // pra manter o estado interno do framework sincronizado com o que
+  // aparece na tela. Atribuir `input.value = x` direto muda só o que
+  // aparece — o framework nunca fica sabendo, e ao clicar "aplicar" ele
+  // manda o valor antigo (vazio). Usar o setter *nativo* do protótipo e
+  // depois disparar os eventos manualmente é o jeito de contornar isso.
+  function preencherCampo(input, valor) {
+    const setterNativo = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      "value"
+    ).set;
+    setterNativo.call(input, valor);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function encontrarBotaoAplicar(campo) {
+    let container = campo.parentElement;
+
+    // Sobe até 5 níveis a partir do campo — checkouts costumam agrupar
+    // campo + botão de aplicar num container próximo (um form, uma div
+    // "aplicar cupom" etc.), não em qualquer lugar da página.
+    for (let nivel = 0; container && nivel < 5; nivel++, container = container.parentElement) {
+      const botoes = container.querySelectorAll('button, input[type="submit"], a[role="button"]');
+      for (const botao of botoes) {
+        const texto = botao.textContent || botao.value || "";
+        if (REGEX_BOTAO_APLICAR.test(texto)) return botao;
+      }
+    }
+
+    return null;
   }
 
   function escaparHtml(texto) {
