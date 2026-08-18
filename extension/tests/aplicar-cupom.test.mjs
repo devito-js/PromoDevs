@@ -1,5 +1,5 @@
 // Testes do mecanismo de "aplicar cupom" do content.js — carrega o arquivo
-// de verdade (não uma reimplementação) em duas páginas de teste locais e
+// de verdade (não uma reimplementação) em páginas de teste locais e
 // verifica o comportamento fim a fim, sem precisar de um site real nem de
 // login em conta nenhuma:
 //
@@ -11,6 +11,9 @@
 //  2. checkout-sem-campo.html: não tem nenhum campo de cupom — confirma que
 //     o fallback (copiar pro clipboard) entra em ação em vez de falhar
 //     silenciosamente.
+//  3. Marcar um cupom como "não funcionou": grava em chrome.storage.local
+//     (stub em memória, ver registrarStubChrome) e mostra o aviso na hora,
+//     sem precisar reabrir o painel — e some de novo ao remover o aviso.
 //
 // Rodar com: npm run test:extension
 import { chromium } from "playwright";
@@ -28,6 +31,13 @@ const CONTENT_JS = path.resolve(__dirname, "../content.js");
 // vez de capturar via closure.
 function registrarStubChrome(page, codigo) {
   return page.addInitScript((codigoCupom) => {
+    // Stub de chrome.storage.local em memória — persiste só durante o
+    // carregamento atual da página (o suficiente pra testar o ciclo
+    // escrever→ler→renderizar dentro de uma sessão do painel; persistência
+    // de verdade entre páginas/reinícios do navegador é comportamento
+    // nativo do browser, não precisa ser re-testada aqui).
+    const armazenamentoLocal = {};
+
     window.chrome = {
       runtime: {
         sendMessage(_msg, callback) {
@@ -45,6 +55,16 @@ function registrarStubChrome(page, codigo) {
               },
             ],
           });
+        },
+      },
+      storage: {
+        local: {
+          async get(chave) {
+            return { [chave]: armazenamentoLocal[chave] };
+          },
+          async set(objeto) {
+            Object.assign(armazenamentoLocal, objeto);
+          },
         },
       },
     };
@@ -128,11 +148,72 @@ async function testeSemCampo(context) {
   };
 }
 
+async function testeMarcarFalha(context) {
+  const page = await context.newPage();
+  await registrarStubChrome(page, "TESTE123");
+  await page.goto("file://" + path.resolve(__dirname, "fixtures/checkout-com-campo.html"));
+
+  await page.addScriptTag({ path: CONTENT_JS });
+  await page.evaluate(() => {
+    document.getElementById("promodevs-widget-root").shadowRoot.querySelector(".botao").click();
+  });
+  await page.waitForFunction(() => {
+    const sombra = document.getElementById("promodevs-widget-root")?.shadowRoot;
+    return !!sombra?.querySelector(".painel .cupom");
+  });
+
+  const avisoAntesDeMarcar = await page.evaluate(() => {
+    return !!document.getElementById("promodevs-widget-root").shadowRoot.querySelector(".aviso-falha");
+  });
+
+  await page.evaluate(() => {
+    document.getElementById("promodevs-widget-root").shadowRoot.querySelector(".marcar-falha").click();
+  });
+  await page.waitForFunction(() => {
+    return !!document.getElementById("promodevs-widget-root").shadowRoot.querySelector(".aviso-falha");
+  });
+
+  // Confirma que não é só efeito visual — o dado foi mesmo pro storage.
+  const gravouNoStorage = await page.evaluate(async () => {
+    const { cuponsFalharam } = await chrome.storage.local.get("cuponsFalharam");
+    return !!cuponsFalharam?.["1"];
+  });
+
+  await page.evaluate(() => {
+    document
+      .getElementById("promodevs-widget-root")
+      .shadowRoot.querySelector(".remover-aviso")
+      .click();
+  });
+  await page.waitForFunction(() => {
+    return !document.getElementById("promodevs-widget-root").shadowRoot.querySelector(".aviso-falha");
+  });
+
+  const removeuDoStorage = await page.evaluate(async () => {
+    const { cuponsFalharam } = await chrome.storage.local.get("cuponsFalharam");
+    return !cuponsFalharam?.["1"];
+  });
+
+  await page.close();
+
+  const ok = !avisoAntesDeMarcar && gravouNoStorage && removeuDoStorage;
+
+  return {
+    nome: "marcar cupom como 'não funcionou' grava no storage e mostra/some o aviso",
+    ok,
+    detalhes: { avisoAntesDeMarcar, gravouNoStorage, removeuDoStorage },
+  };
+}
+
 const browser = await chromium.launch();
 const context = await browser.newContext();
 await context.grantPermissions(["clipboard-read", "clipboard-write"]);
 
-const resultados = [await testeComCampo(context), await testeSemCampo(context)];
+const resultados = [
+  await testeComCampo(context),
+  await testeSemCampo(context),
+  await testeMarcarFalha(context),
+];
 
 await browser.close();
 

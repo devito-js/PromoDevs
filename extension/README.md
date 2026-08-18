@@ -26,6 +26,13 @@ sozinha, você continua no controle.
   fora da tela ainda, checkout que exige login antes de mostrar o campo
   etc.), cai pro comportamento antigo: copia o código pro clipboard e
   avisa que não achou o campo — você cola manualmente.
+- Cada cupom tem um link discreto "não funcionou" — clicar guarda isso em
+  `chrome.storage.local` (só nessa máquina, não sincroniza) e mostra um
+  aviso amarelo *antes* dos botões de ação da próxima vez que o painel
+  abrir com esse cupom na lista, pra você não perder tempo tentando de
+  novo um código que a loja já rejeitou. Dá pra remover o aviso (✕) se
+  quiser tentar de novo mesmo assim — nada é automático aqui, é só
+  memória do que você já reportou.
 
 ## Instalar (modo desenvolvedor)
 
@@ -44,12 +51,14 @@ Se o dashboard estiver rodando em outra URL/porta, ajuste em
 ## Testes
 
 `npm run test:extension` roda `content.js` de verdade (não uma
-reimplementação) contra duas páginas de teste locais em
+reimplementação) contra páginas de teste locais em
 `extension/tests/fixtures/`: uma com um campo de cupom "controlado" (estilo
 React) e outra sem nenhum campo — confirma que o preenchimento programático
 funciona de verdade e que o fallback pra copiar entra em ação quando não há
-campo. Não substitui testar contra uma loja real, só garante que o mecanismo
-central não quebrou.
+campo — além de um teste que marca um cupom como "não funcionou" e confirma
+que grava em `chrome.storage.local` (não só na tela) e que o aviso some ao
+remover. Não substitui testar contra uma loja real, só garante que o
+mecanismo central não quebrou.
 
 ## Limitações conhecidas (é um MVP)
 

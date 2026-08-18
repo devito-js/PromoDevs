@@ -43,6 +43,20 @@
     .vazio, .carregando, .erro { font-size: 13px; color: #666; padding: 4px 0 8px; }
     .erro { color: #b91c1c; }
     .fonte { font-size: 10px; color: #999; margin-top: 2px; }
+    .aviso-falha {
+      display: flex; justify-content: space-between; align-items: center; gap: 6px;
+      background: #fff3cd; color: #7a5b00; border: 1px solid #ffe08a; border-radius: 6px;
+      padding: 4px 6px; font-size: 11px; margin: 4px 0;
+    }
+    .remover-aviso {
+      border: none; background: transparent; cursor: pointer; font-size: 12px;
+      color: #7a5b00; padding: 0 2px; line-height: 1;
+    }
+    .marcar-falha {
+      border: none; background: transparent; cursor: pointer; font-size: 10px;
+      color: #aaa; text-decoration: underline; padding: 0; margin-left: 4px;
+    }
+    .marcar-falha:hover { color: #b91c1c; }
   `;
   sombra.appendChild(estilo);
 
@@ -67,7 +81,7 @@
   function buscarCupons() {
     painel.innerHTML = `<h3>Cupons — ${hostname}</h3><div class="carregando">Buscando…</div>`;
 
-    chrome.runtime.sendMessage({ tipo: "BUSCAR_CUPONS", dominio: hostname }, (resposta) => {
+    chrome.runtime.sendMessage({ tipo: "BUSCAR_CUPONS", dominio: hostname }, async (resposta) => {
       if (chrome.runtime.lastError) {
         painel.innerHTML = `<h3>Cupons — ${hostname}</h3><div class="erro">Erro de comunicação com a extensão: ${escaparHtml(
           chrome.runtime.lastError.message
@@ -87,14 +101,16 @@
         return;
       }
 
+      const falhas = await carregarFalhas();
+
       painel.innerHTML = `<h3>Cupons — ${hostname} (${resposta.cupons.length})</h3>`;
       for (const cupom of resposta.cupons) {
-        painel.appendChild(criarItemCupom(cupom));
+        painel.appendChild(criarItemCupom(cupom, falhas[cupom.id] ?? null));
       }
     });
   }
 
-  function criarItemCupom(cupom) {
+  function criarItemCupom(cupom, falhaInfo) {
     const item = document.createElement("div");
     item.className = "cupom";
 
@@ -110,15 +126,77 @@
     item.innerHTML = `
       <div class="cupom-titulo">${escaparHtml(cupom.titulo)}</div>
       <div class="cupom-linha">${acoesHtml}</div>
-      <div class="fonte">via ${escaparHtml(cupom.fonte)}</div>
+      <div class="fonte">via ${escaparHtml(cupom.fonte)} <button class="marcar-falha">não funcionou</button></div>
     `;
+
+    // Mostra o aviso ANTES do usuário decidir clicar em "Aplicar" — é o que
+    // foi pedido: guardar que um cupom não funcionou e avisar da próxima
+    // vez, pra não perder tempo tentando o mesmo código de novo.
+    if (falhaInfo) {
+      item.querySelector(".cupom-titulo").after(criarAvisoFalha(cupom, falhaInfo.quando));
+    }
 
     const botaoAplicar = item.querySelector(".aplicar");
     if (botaoAplicar) {
       botaoAplicar.addEventListener("click", () => aplicarOuCopiar(cupom, botaoAplicar));
     }
 
+    item.querySelector(".marcar-falha").addEventListener("click", async () => {
+      await marcarComoFalhou(cupom);
+      if (!item.querySelector(".aviso-falha")) {
+        item.querySelector(".cupom-titulo").after(criarAvisoFalha(cupom, new Date().toISOString()));
+      }
+    });
+
     return item;
+  }
+
+  function criarAvisoFalha(cupom, quandoIso) {
+    const aviso = document.createElement("div");
+    aviso.className = "aviso-falha";
+    aviso.innerHTML = `⚠️ Marcado como "não funcionou" em ${formatarData(quandoIso)} <button class="remover-aviso" title="Remover aviso">✕</button>`;
+    aviso.querySelector(".remover-aviso").addEventListener("click", async () => {
+      await removerMarcacaoFalha(cupom.id);
+      aviso.remove();
+    });
+    return aviso;
+  }
+
+  function formatarData(iso) {
+    try {
+      return new Date(iso).toLocaleDateString("pt-BR");
+    } catch {
+      return "";
+    }
+  }
+
+  // Histórico de cupons marcados como "não funcionou", guardado em
+  // chrome.storage.local (persiste entre sessões do navegador, mas fica só
+  // nessa máquina — não sincroniza com storage.sync de propósito, já que é
+  // um dado de uso, não de configuração). Chave por `cupom.id` (o id do
+  // banco do dashboard, estável entre rodadas do scraper pelo mesmo hash de
+  // dedup — ver scraper-runner.ts).
+  const CHAVE_STORAGE_FALHAS = "cuponsFalharam";
+
+  async function carregarFalhas() {
+    const resultado = await chrome.storage.local.get(CHAVE_STORAGE_FALHAS);
+    return resultado[CHAVE_STORAGE_FALHAS] ?? {};
+  }
+
+  async function marcarComoFalhou(cupom) {
+    const falhas = await carregarFalhas();
+    falhas[cupom.id] = {
+      quando: new Date().toISOString(),
+      dominio: hostname,
+      titulo: cupom.titulo,
+    };
+    await chrome.storage.local.set({ [CHAVE_STORAGE_FALHAS]: falhas });
+  }
+
+  async function removerMarcacaoFalha(cupomId) {
+    const falhas = await carregarFalhas();
+    delete falhas[cupomId];
+    await chrome.storage.local.set({ [CHAVE_STORAGE_FALHAS]: falhas });
   }
 
   function mostrarFeedback(botao, texto, duracaoMs = 2500) {
