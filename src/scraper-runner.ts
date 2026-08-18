@@ -4,11 +4,12 @@ import { cupons } from "./db/schema";
 import { sql } from "drizzle-orm";
 import { promobitScraper } from "./scrapers/promobit";
 import { pelandoScraper } from "./scrapers/pelando";
+import { cuponomiaScraper } from "./scrapers/cuponomia";
 import type { Scraper } from "./scrapers/types";
 
 // Lista de scrapers ativos — adicionar um novo agregador é só importar e
 // colocar aqui, desde que ele implemente a interface `Scraper`.
-const scrapers: Scraper[] = [promobitScraper, pelandoScraper];
+const scrapers: Scraper[] = [promobitScraper, pelandoScraper, cuponomiaScraper];
 
 function calcularHash(fonte: string, urlOrigem: string) {
   // `urlOrigem` é único por cupom em qualquer fonte (ex: o Promobit usa

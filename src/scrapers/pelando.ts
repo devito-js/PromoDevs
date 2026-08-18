@@ -1,4 +1,5 @@
 import { type Scraper, type CupomBruto, cupomBrutoSchema } from "./types";
+import { extrairDominioRegistravel } from "./dominio";
 
 const SITE_URL = "https://www.pelando.com.br";
 
@@ -69,17 +70,11 @@ function extrairOfertas(html: string): {
   );
 
   // A URL do site oficial da loja (não a do Pelando) vem em `url`, ex:
-  // "https://www.mercadolivre.com.br/" — extraímos só o hostname, sem
-  // "www." nem protocolo.
-  let dominioLoja: string | null = null;
+  // "https://www.mercadolivre.com.br/" — mas às vezes é um subdomínio
+  // específico (ex: "pt.aliexpress.com" pra AliExpress), por isso
+  // extraímos o domínio *registrável* (ver dominio.ts), não só o hostname.
   const urlLoja = organizacaoLoja?.url as string | undefined;
-  if (urlLoja) {
-    try {
-      dominioLoja = new URL(urlLoja).hostname.replace(/^www\./, "");
-    } catch {
-      dominioLoja = null;
-    }
-  }
+  const dominioLoja = urlLoja ? extrairDominioRegistravel(urlLoja) : null;
 
   return {
     ofertas,

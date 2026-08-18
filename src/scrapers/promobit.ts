@@ -1,4 +1,5 @@
 import { type Scraper, type CupomBruto, cupomBrutoSchema } from "./types";
+import { extrairDominioRegistravel } from "./dominio";
 
 const API_URL = "https://api.promobit.com.br/coupon";
 const SITE_URL = "https://www.promobit.com.br";
@@ -72,7 +73,9 @@ export const promobitScraper: Scraper = {
 
       const candidato = {
         loja: cupom.store_name,
-        lojaDominio: cupom.store_domain?.replace(/^www\./, "") || null,
+        lojaDominio: cupom.store_domain
+          ? extrairDominioRegistravel(cupom.store_domain)
+          : null,
         titulo: cupom.coupon_title,
         codigo: cupom.coupon_code || null,
         desconto: cupom.coupon_discount || cupom.coupon_discount_value || null,
