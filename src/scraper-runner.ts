@@ -3,16 +3,20 @@ import { db } from "./db/client";
 import { cupons } from "./db/schema";
 import { sql } from "drizzle-orm";
 import { promobitScraper } from "./scrapers/promobit";
+import { pelandoScraper } from "./scrapers/pelando";
 import type { Scraper } from "./scrapers/types";
 
 // Lista de scrapers ativos — adicionar um novo agregador é só importar e
 // colocar aqui, desde que ele implemente a interface `Scraper`.
-const scrapers: Scraper[] = [promobitScraper];
+const scrapers: Scraper[] = [promobitScraper, pelandoScraper];
 
-function calcularHash(fonte: string, loja: string, codigo: string | null | undefined) {
-  return createHash("sha256")
-    .update(`${fonte}|${loja}|${codigo ?? ""}`)
-    .digest("hex");
+function calcularHash(fonte: string, urlOrigem: string) {
+  // `urlOrigem` é único por cupom em qualquer fonte (ex: o Promobit usa
+  // "/Redirect/cupom/<id>", com um id próprio por cupom). Usar (fonte + loja
+  // + código) como antes colidia sempre que duas ofertas da mesma loja não
+  // tinham código (ex: só um link promocional) — o segundo cupom sobrescrevia
+  // o primeiro em vez de ser tratado como um item novo.
+  return createHash("sha256").update(`${fonte}|${urlOrigem}`).digest("hex");
 }
 
 async function rodarScraper(scraper: Scraper) {
@@ -29,7 +33,7 @@ async function rodarScraper(scraper: Scraper) {
   const agora = new Date().toISOString();
 
   for (const cupom of cuponsBrutos) {
-    const hash = calcularHash(scraper.nome, cupom.loja, cupom.codigo);
+    const hash = calcularHash(scraper.nome, cupom.urlOrigem);
 
     // "Upsert": se o cupom já existe (mesmo hash), só atualizamos `vistoEm`
     // e marcamos como ativo de novo. Se não existe, inserimos novo.

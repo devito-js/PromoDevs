@@ -6,7 +6,7 @@ import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
  * Guardamos `fonte` (de qual agregador ele veio) e `urlOrigem` (link direto
  * pra página do cupom) pra sempre ser possível rastrear e re-verificar.
  *
- * `hash` é um identificador único calculado a partir de (fonte + loja + codigo)
+ * `hash` é um identificador único calculado a partir de (fonte + urlOrigem)
  * — usamos ele para evitar duplicar o mesmo cupom a cada rodada do scraper
  * (isso é feito com "upsert": se o hash já existe, só atualizamos `vistoEm`).
  */
